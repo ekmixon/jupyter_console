@@ -30,7 +30,7 @@ class ZMQCompleter(Configurable):
             code=code,
             cursor_pos=cursor_pos,
         )
-    
+
         msg = self.client.shell_channel.get_msg(timeout=self.timeout)
         if msg['parent_header']['msg_id'] == msg_id:
             return msg['content']

@@ -56,7 +56,7 @@ def stop_console(p, pexpect, t):
 def start_console():
     "Start `jupyter console` using pexpect"
     import pexpect
-    
+
     args = ['-m', 'jupyter_console', '--colors=NoColor']
     cmd = sys.executable
     env = os.environ.copy()
@@ -67,7 +67,7 @@ def start_console():
         p = pexpect.spawn(cmd, args=args, env=env)
     except IOError:
         pytest.skip("Couldn't find command %s" % cmd)
-    
+
     # timeout after one minute
     t = 60
     p.expect(r"In \[\d+\]", timeout=t)

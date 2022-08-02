@@ -4,6 +4,7 @@ This is not a complete console app, as subprocess will not be able to receive
 input, there is no real readline support, among other limitations.
 """
 
+
 # Copyright (c) IPython Development Team.
 # Distributed under the terms of the Modified BSD License.
 
@@ -42,7 +43,7 @@ jupyter console --existing # connect to an existing ipython session
 flags = dict(base_flags)
 # start with mixin frontend flags:
 # update full dict with frontend flags:
-flags.update(app_flags)
+flags |= app_flags
 flags.update(boolean_flag(
     'simple-prompt', 'ZMQTerminalInteractiveShell.simple_prompt',
     "Force simple minimal prompt using `raw_input`",
@@ -52,7 +53,7 @@ flags.update(boolean_flag(
 # copy flags from mixin
 aliases = dict(base_aliases)
 
-aliases.update(app_aliases)
+aliases |= app_aliases
 
 frontend_aliases = set(app_aliases.keys())
 frontend_flags = set(app_flags.keys())
@@ -115,16 +116,15 @@ class ZMQTerminalIPythonApp(JupyterApp, JupyterConsoleApp):
         pass
 
     def handle_sigint(self, *args):
-        if self.shell._executing:
-            if self.kernel_manager:
-                self.kernel_manager.interrupt_kernel()
-            else:
-                print("ERROR: Cannot interrupt kernels we didn't start.",
-                      file = sys.stderr)
-        else:
+        if not self.shell._executing:
             # raise the KeyboardInterrupt if we aren't waiting for execution,
             # so that the interact loop advances, and prompt is redrawn, etc.
             raise KeyboardInterrupt
+        if self.kernel_manager:
+            self.kernel_manager.interrupt_kernel()
+        else:
+            print("ERROR: Cannot interrupt kernels we didn't start.",
+                  file = sys.stderr)
 
     @catch_config_error
     def initialize(self, argv=None):

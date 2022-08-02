@@ -94,19 +94,16 @@ def ask_yes_no(prompt, default=None, interrupt=None):
     ans = None
     while ans not in answers.keys():
         try:
-            ans = input(prompt + ' ').lower()
-            if not ans:  # response was an empty string
-                ans = default
+            ans = input(f'{prompt} ').lower() or default
         except KeyboardInterrupt:
             if interrupt:
                 ans = interrupt
         except EOFError:
-            if default in answers.keys():
-                ans = default
-                print()
-            else:
+            if default not in answers:
                 raise
 
+            ans = default
+            print()
     return answers[ans]
 
 
@@ -153,11 +150,13 @@ class JupyterPTCompleter(Completer):
 
         if "_jupyter_types_experimental" in meta:
             try:
-                new_meta = {}
-                for c, m in zip(
-                    content["matches"], meta["_jupyter_types_experimental"]
-                ):
-                    new_meta[c] = m["type"]
+                new_meta = {
+                    c: m["type"]
+                    for c, m in zip(
+                        content["matches"], meta["_jupyter_types_experimental"]
+                    )
+                }
+
                 meta = new_meta
             except Exception:
                 pass
@@ -370,7 +369,7 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
     def vi_mode(self):
         if (getattr(self, 'editing_mode', None) == 'vi'
                 and self.prompt_includes_vi_mode):
-            return '['+str(self.pt_cli.app.vi_state.input_mode)[3:6]+'] '
+            return f'[{str(self.pt_cli.app.vi_state.input_mode)[3:6]}] '
         return ''
     
     def get_prompt_tokens(self, ec=None):
@@ -452,7 +451,7 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
                 return raw
             self.prompt_for_code = prompt
             self.print_out_prompt = \
-                lambda: print('Out[%d]: ' % self.execution_count, end='')
+                    lambda: print('Out[%d]: ' % self.execution_count, end='')
             return
 
         kb = KeyBindings()
@@ -579,12 +578,11 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
         else:
             default = ''
 
-        if PTK3:
-            text = await self.pt_cli.prompt_async(default=default)
-        else:
-            text = await self.pt_cli.prompt(default=default, async_=True)
-
-        return text
+        return (
+            await self.pt_cli.prompt_async(default=default)
+            if PTK3
+            else await self.pt_cli.prompt(default=default, async_=True)
+        )
 
     def init_io(self):
         if sys.platform not in {'win32', 'cli'}:
@@ -680,7 +678,7 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
             self._eventloop.close()
         if self.keepkernel and not self.own_kernel:
             print('keeping kernel alive')
-        elif self.keepkernel and self.own_kernel:
+        elif self.keepkernel:
             print("owning kernel, cannot keep it alive")
             self.client.shutdown()
         else:
@@ -762,9 +760,6 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
                         self.keepkernel = item.get('keepkernel', False)
                         self.ask_exit()
 
-            elif status == 'error':
-                pass
-
             self.execution_count = int(content["execution_count"] + 1)
 
     def handle_is_complete_reply(self, msg_id, timeout=None):
@@ -786,7 +781,10 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
             return False, ""
         ## Handle response:
         if msg["parent_header"].get("msg_id", None) != msg_id:
-            warn('The kernel did not respond properly to an is_complete_request: %s.' % str(msg))
+            warn(
+                f'The kernel did not respond properly to an is_complete_request: {str(msg)}.'
+            )
+
             return False, ""
         else:
             status = msg["content"].get("status", None)
@@ -827,10 +825,7 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
             # only echo inputs not from here
             return self.include_other_output and not from_here
 
-        if self.include_other_output:
-            return True
-        else:
-            return from_here
+        return True if self.include_other_output else from_here
 
     async def handle_external_iopub(self, loop=None):
         while self.keep_running:
@@ -947,16 +942,17 @@ class ZMQTerminalInteractiveShell(SingletonConfigurable):
     }
 
     def handle_rich_data(self, data):
-        for mime in self.mime_preference:
-            if mime in data and mime in self._imagemime:
-                if self.handle_image(data, mime):
-                    return True
-        return False
+        return any(
+            mime in data
+            and mime in self._imagemime
+            and self.handle_image(data, mime)
+            for mime in self.mime_preference
+        )
 
     def handle_image(self, data, mime):
-        handler = getattr(
-            self, 'handle_image_{0}'.format(self.image_handler), None)
-        if handler:
+        if handler := getattr(
+            self, 'handle_image_{0}'.format(self.image_handler), None
+        ):
             return handler(data, mime)
 
     def handle_image_PIL(self, data, mime):

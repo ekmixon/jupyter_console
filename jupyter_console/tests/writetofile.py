@@ -17,13 +17,10 @@ If INPUT is '-', stdin is used.
 
 """
 
+
 if __name__ == '__main__':
     import sys
     (inpath, outpath) = sys.argv[1:]
 
-    if inpath == '-':
-        infile = sys.stdin.buffer
-    else:
-        infile = open(inpath, 'rb')
-
+    infile = sys.stdin.buffer if inpath == '-' else open(inpath, 'rb')
     open(outpath, 'w+b').write(infile.read())

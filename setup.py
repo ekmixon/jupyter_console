@@ -20,10 +20,10 @@ if sys.version_info < (3, 6):
     pip_message = 'This may be due to an out of date pip. Make sure you have pip >= 9.0.1.'
     try:
         import pip
-        pip_version = tuple([int(x) for x in pip.__version__.split('.')[:3]])
-        if pip_version < (9, 0, 1) :
-            pip_message = 'Your pip version is out of date, please install pip >= 9.0.1. '\
-            'pip {} detected.'.format(pip.__version__)
+        pip_version = tuple(int(x) for x in pip.__version__.split('.')[:3])
+        if pip_version < (9, 0, 1):
+            pip_message = f'Your pip version is out of date, please install pip >= 9.0.1. pip {pip.__version__} detected.'
+
         else:
             # pip is new enough - it must be something else
             pip_message = ''
@@ -57,10 +57,11 @@ pjoin = os.path.join
 here = os.path.abspath(os.path.dirname(__file__))
 pkg_root = pjoin(here, name)
 
-packages = []
-for d, _, _ in os.walk(pjoin(here, name)):
-    if os.path.exists(pjoin(d, '__init__.py')):
-        packages.append(d[len(here)+1:].replace(os.path.sep, '.'))
+packages = [
+    d[len(here) + 1 :].replace(os.path.sep, '.')
+    for d, _, _ in os.walk(pjoin(here, name))
+    if os.path.exists(pjoin(d, '__init__.py'))
+]
 
 version_ns = {}
 with open(pjoin(here, name, '_version.py')) as f:
